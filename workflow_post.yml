@@ -1,0 +1,38 @@
+name: Post next reel
+
+on:
+  schedule:                # times are UTC; shown in Sydney daylight-saving time (an hour later in winter)
+    - cron: "0 19 * * *"  # 6 am Sydney
+    - cron: "0 1 * * *"   # 12 pm Sydney
+    - cron: "0 7 * * *"   # 6 pm Sydney
+  workflow_dispatch:       # lets you press "Run workflow" to post one straight away
+
+permissions:
+  contents: write
+
+concurrency:
+  group: post-reel
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Post to Instagram
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          POSTS_PER_RUN: "5"          # reels posted at each time slot
+          MINUTES_BETWEEN_POSTS: "3"
+        run: python post.py
+      - name: Save progress
+        run: |
+          git config user.name "autopost-bot"
+          git config user.email "autopost-bot@users.noreply.github.com"
+          git add posted.json
+          git diff --cached --quiet || git commit -m "Posted next reel"
+          git push
